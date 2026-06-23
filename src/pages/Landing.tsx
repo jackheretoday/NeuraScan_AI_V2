@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import {
   Brain, ArrowRight, Bell, Shield, Activity, Clock, TrendingUp,
   Award, Lock, Search, FileText, Check, Star, Mail, MapPin, Phone,
   MessageSquare, Plus, Menu, X
 } from 'lucide-react';
+import { BrainCanvas } from '../components/landing/BrainCanvas';
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis
 } from 'recharts';
@@ -37,6 +38,64 @@ export function Landing() {
   const [showDemoNotification, setShowDemoNotification] = useState(false);
   const [demoRequested, setDemoRequested] = useState(false);
 
+  // Contact modal states
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', email: '', subject: 'General Inquiry', message: '' });
+  const [isSubmittingContact, setIsSubmittingContact] = useState(false);
+  const [contactSuccess, setContactSuccess] = useState(false);
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingContact(true);
+    setTimeout(() => {
+      setIsSubmittingContact(false);
+      setContactSuccess(true);
+    }, 1200);
+  };
+
+  const closeContactModal = () => {
+    setContactModalOpen(false);
+    setTimeout(() => {
+      setContactSuccess(false);
+      setContactForm({ name: '', email: '', subject: 'General Inquiry', message: '' });
+    }, 300);
+  };
+
+  const aboutSectionRef = useRef<HTMLElement>(null);
+
+  // Track scroll progress of the about section
+  const { scrollYProgress } = useScroll({
+    target: aboutSectionRef,
+    offset: ["start center", "end center"]
+  });
+
+  // Track window size to make translation responsive
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1024;
+
+  // Determine translation values based on viewport size
+  const translationX = isMobile ? 55 : isTablet ? 130 : 210;
+  const brainTranslationX = isMobile ? 85 : isTablet ? 200 : 330; // shift brain more to the right
+
+  // Transform mappings:
+  // Capsule: moves from center (x: 0) to left (x: -translationX)
+  const capsuleX = useTransform(scrollYProgress, [0.1, 0.45], [0, -translationX]);
+  const capsuleScale = useTransform(scrollYProgress, [0.1, 0.45], [1, isMobile ? 0.70 : 0.85]);
+  const capsuleRotate = useTransform(scrollYProgress, [0.1, 0.45], [0, -8]);
+
+  // Brain: pops up (scale: 0 -> 1.3, opacity: 0 -> 1) and moves to right (x: 0 -> brainTranslationX)
+  const brainX = useTransform(scrollYProgress, [0.35, 0.7], [0, brainTranslationX]);
+  const brainScale = useTransform(scrollYProgress, [0.35, 0.7], [0, isMobile ? 0.85 : 1.3]); // increased size
+  const brainOpacity = useTransform(scrollYProgress, [0.35, 0.7], [0, 1]);
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -55,13 +114,13 @@ export function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans selection:bg-medical-500 selection:text-white antialiased">
+    <div className="min-h-screen bg-[#f0f3f6] text-slate-800 font-sans selection:bg-medical-500 selection:text-white antialiased">
 
       {/* Navigation Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-            ? 'py-4 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm'
-            : 'py-6 bg-transparent'
+          ? 'py-4 bg-[#fafbfc]/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm'
+          : 'py-6 bg-transparent'
           }`}
       >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
@@ -88,7 +147,7 @@ export function Landing() {
           {/* CTA Right */}
           <div className="hidden md:flex items-center gap-4">
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => setContactModalOpen(true)}
               className="px-6 py-2.5 bg-white border border-slate-200 text-slate-850 rounded-full font-bold text-xs hover:bg-slate-50 transition-all shadow-sm"
             >
               Contact Us
@@ -128,7 +187,7 @@ export function Landing() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-b border-slate-100 bg-white/95 backdrop-blur-md px-6 py-4 space-y-3"
+              className="md:hidden border-b border-slate-200 bg-[#fafbfc]/95 backdrop-blur-md px-6 py-4 space-y-3"
             >
               <a href="#home" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-bold text-slate-600 hover:text-slate-900 py-1">Home</a>
               <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block text-sm font-bold text-slate-600 hover:text-slate-900 py-1">About Us</a>
@@ -139,7 +198,7 @@ export function Landing() {
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    navigate('/login');
+                    setContactModalOpen(true);
                   }}
                   className="w-full py-2 bg-slate-900 text-white rounded-full text-xs font-bold text-center"
                 >
@@ -152,7 +211,7 @@ export function Landing() {
       </header>
 
       {/* Hero Section */}
-      <section id="home" className="relative min-h-screen pt-28 flex items-center overflow-hidden bg-white">
+      <section id="home" className="relative min-h-screen pt-28 flex items-center overflow-hidden bg-[#fafbfc]">
 
         {/* Soft Iridescent Radial Gradients in Background (Vibrant Orange, Pink, Purple, Blue) */}
         <div className="absolute right-0 top-0 w-full lg:w-[60%] h-full pointer-events-none select-none z-0">
@@ -171,11 +230,16 @@ export function Landing() {
           {/* Top Row: Heading on Left, Paragraph & Buttons on Right */}
           <div className="grid lg:grid-cols-12 gap-8 items-start mb-12">
             <div className="lg:col-span-7 space-y-4">
-              <h1 className="text-4xl sm:text-5xl xl:text-[56px] font-black leading-[1.05] tracking-tight text-slate-900 font-sans">
+              <motion.h1
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 4, ease: [0.16, 1, 0.3, 1] }}
+                className="text-4xl sm:text-5xl xl:text-[56px] font-black leading-[1.05] tracking-tight text-slate-900 font-sans"
+              >
                 Automated Brain MRI <br />
                 Analysis & 24-Month <br />
                 Conversion Prediction
-              </h1>
+              </motion.h1>
             </div>
 
             <div className="lg:col-span-5 lg:pt-12 space-y-6">
@@ -245,7 +309,7 @@ export function Landing() {
       </section>
 
       {/* Section 2: Democratizing Advanced Neuroimaging */}
-      <section id="about" className="py-24 bg-white border-t border-slate-50 overflow-hidden relative">
+      <section id="about" ref={aboutSectionRef} className="py-24 bg-[#fafbfc] border-t border-slate-200/50 overflow-hidden relative">
         {/* Ghost background Watermark */}
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none select-none z-0">
           <span className="text-[12vw] font-black text-slate-100/60 tracking-[0.15em] uppercase">NEURO CDSS</span>
@@ -264,14 +328,27 @@ export function Landing() {
             </div>
           </div>
 
-          {/* Middle Row: Watermark and Capsule */}
-          <div className="relative w-full h-[280px] md:h-[360px] flex items-center justify-center my-6">
+          {/* Middle Row: Animated Capsule & 3D Brain */}
+          <div className="relative w-full h-[360px] md:h-[480px] flex items-center justify-center my-6 overflow-visible">
             {/* The Capsule Image */}
-            <img
-              src="/images/capsule_3d-removebg-preview.png"
-              alt="Metallic medical capsule"
-              className="relative z-10 w-auto h-full max-h-[300px] md:max-h-[380px] object-contain drop-shadow-[0_25px_60px_rgba(79,70,229,0.2)]"
-            />
+            <motion.div
+              style={{ x: capsuleX, scale: capsuleScale, rotate: capsuleRotate }}
+              className="absolute z-20 flex items-center justify-center pointer-events-none"
+            >
+              <img
+                src="/images/capsule_3d-removebg-preview.png"
+                alt="Metallic medical capsule"
+                className="w-auto h-[240px] md:h-[360px] object-contain drop-shadow-[0_25px_60px_rgba(79,70,229,0.2)]"
+              />
+            </motion.div>
+
+            {/* The 3D Brain Model */}
+            <motion.div
+              style={{ x: brainX, scale: brainScale, opacity: brainOpacity }}
+              className="absolute z-10 w-[300px] h-[300px] md:w-[460px] md:h-[460px] flex items-center justify-center"
+            >
+              <BrainCanvas />
+            </motion.div>
           </div>
 
           {/* Bottom Row: Left Heading/Description, Right Button */}
@@ -295,7 +372,7 @@ export function Landing() {
       </section>
 
       {/* Section 3: Advanced AI & CDSS Capabilities */}
-      <section id="services" className="py-24 bg-[#f8fafc] border-t border-slate-100">
+      <section id="services" className="py-24 bg-[#f0f3f6] border-t border-slate-200/70">
         <div className="max-w-7xl mx-auto px-6 space-y-12">
 
           {/* Title and Right-Side Subheading */}
@@ -314,7 +391,7 @@ export function Landing() {
           </div>
 
           {/* Services Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
 
             {/* Card 1: Dementia Severity Staging */}
             <div className="bg-white rounded-[32px] p-5 border border-slate-200/60 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow min-h-[390px] group">
@@ -332,38 +409,20 @@ export function Landing() {
                 </p>
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4">
-                <span className="text-xs font-bold text-slate-900 cursor-pointer hover:text-slate-700" onClick={() => navigate('/login')}>Learn More</span>
+              <a
+                href="https://www.alz.org/alzheimers-dementia/stages"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4 w-full cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <span className="text-xs font-bold text-slate-900">Learn More</span>
                 <div className="w-8.5 h-8.5 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-800">
                   <ArrowRight size={13} className="-rotate-45" />
                 </div>
-              </div>
+              </a>
             </div>
 
-            {/* Card 2: ADNI-Powered MCI Predictor (Purple Gradient Highlight) */}
-            <div className="bg-gradient-to-br from-indigo-500 via-indigo-650 to-purple-650 rounded-[32px] p-6 shadow-xl flex flex-col justify-between text-white min-h-[390px] shadow-indigo-500/10">
-              <div className="space-y-4">
-                {/* Model version badge */}
-                <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur px-3.5 py-2 rounded-2xl w-fit border border-white/15">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-                  <p className="text-[10px] font-black text-white uppercase tracking-wider">Predictive Model v2.4</p>
-                </div>
-
-                <h3 className="text-lg font-black leading-tight pt-2">ADNI-Powered MCI Predictor</h3>
-                <p className="text-xs text-indigo-50 font-semibold leading-relaxed">
-                  ADNI-Powered MCI Predictor: Multimodal clinical and biomarker scoring mapping 24-month Alzheimer's conversion probabilities.
-                </p>
-              </div>
-
-              <button
-                onClick={() => navigate('/login')}
-                className="w-full py-3 bg-white text-indigo-650 hover:bg-slate-50 rounded-full font-bold text-xs transition-all uppercase tracking-wider shadow"
-              >
-                Launch Predictor
-              </button>
-            </div>
-
-            {/* Card 3: Brain Age Gap Tracking */}
+            {/* Card 2: Brain Age Gap Tracking */}
             <div className="bg-white rounded-[32px] p-5 border border-slate-200/60 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow min-h-[390px] group">
               <div>
                 <div className="w-full aspect-[16/10] rounded-[24px] overflow-hidden bg-slate-100 mb-4.5">
@@ -379,15 +438,20 @@ export function Landing() {
                 </p>
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4">
-                <span className="text-xs font-bold text-slate-900 cursor-pointer hover:text-slate-700" onClick={() => navigate('/login')}>Learn More</span>
+              <a
+                href="https://brainagecheckup.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4 w-full cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <span className="text-xs font-bold text-slate-900">Learn More</span>
                 <div className="w-8.5 h-8.5 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-800">
                   <ArrowRight size={13} className="-rotate-45" />
                 </div>
-              </div>
+              </a>
             </div>
 
-            {/* Card 4: Dual Explainable AI (XAI) */}
+            {/* Card 3: Dual Explainable AI (XAI) */}
             <div className="bg-white rounded-[32px] p-5 border border-slate-200/60 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow min-h-[390px] group">
               <div>
                 <div className="w-full aspect-[16/10] rounded-[24px] overflow-hidden bg-slate-100 mb-4.5">
@@ -403,12 +467,17 @@ export function Landing() {
                 </p>
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4">
-                <span className="text-xs font-bold text-slate-900 cursor-pointer hover:text-slate-700" onClick={() => navigate('/login')}>Learn More</span>
+              <a
+                href="https://ceur-ws.org/Vol-4017/paper_46.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4 w-full cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <span className="text-xs font-bold text-slate-900">Learn More</span>
                 <div className="w-8.5 h-8.5 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-slate-800">
                   <ArrowRight size={13} className="-rotate-45" />
                 </div>
-              </div>
+              </a>
             </div>
 
           </div>
@@ -416,7 +485,7 @@ export function Landing() {
       </section>
 
       {/* Section 4: Key Healthcare Services Grid */}
-      <section id="doctors" className="py-24 bg-white">
+      <section id="doctors" className="py-24 bg-[#fafbfc]">
         <div className="max-w-7xl mx-auto px-6 space-y-12">
 
           {/* Header Row */}
@@ -595,7 +664,7 @@ export function Landing() {
       </section>
 
       {/* Section 5: Advanced Technology Showcase (Tablet) */}
-      <section id="dashboard-preview" className="py-24 bg-[#f8fafc] border-t border-slate-100">
+      <section id="dashboard-preview" className="py-24 bg-[#f0f3f6] border-t border-slate-200/70">
         <div className="max-w-7xl mx-auto px-6">
 
           {/* Gradient Container block behind mockup */}
@@ -609,8 +678,8 @@ export function Landing() {
             <div className="lg:col-span-7 flex justify-center relative z-10 order-2 lg:order-1">
               <div className="relative w-full max-w-xl aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl border border-slate-800/70 bg-slate-950 flex items-center justify-center">
                 <img
-                  src="/images/tablet_mockup.png"
-                  alt="NeuroScan Dashboard Mockup on Tablet"
+                  src="https://static.vecteezy.com/system/resources/previews/009/009/096/non_2x/diagnosis-of-diseases-of-the-brain-in-a-doctor-looking-at-magnetic-resonance-imaging-vector.jpg"
+                  alt="Diagnosis of diseases of the brain in a doctor looking at magnetic resonance imaging"
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -618,11 +687,6 @@ export function Landing() {
 
             {/* Right Copy */}
             <div className="lg:col-span-5 space-y-6 text-white relative z-10 order-1 lg:order-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-950/50 border border-indigo-900/40">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-300">Explainable CDSS Platform</span>
-              </div>
-
               <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
                 Quantifying neuro-decline <br />
                 with precision CDSS
@@ -637,7 +701,7 @@ export function Landing() {
                   onClick={() => navigate('/login')}
                   className="px-6 py-3 bg-white text-slate-950 rounded-full font-bold text-xs hover:bg-slate-50 transition-colors uppercase tracking-wider shadow"
                 >
-                  Launch Console
+                  explore Clinic/hospital package for SaaS
                 </button>
               </div>
             </div>
@@ -771,6 +835,150 @@ export function Landing() {
               <p className="text-[10px] text-slate-400 mt-0.5">Our medical support team will reach out shortly.</p>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Contact Us / Send us a message Modal */}
+      <AnimatePresence>
+        {contactModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeContactModal}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="relative w-full max-w-lg bg-white rounded-[32px] p-8 border border-slate-100 shadow-2xl overflow-hidden z-10"
+            >
+              {/* Background Glows */}
+              <div className="absolute right-[-10%] top-[-10%] w-[40%] h-[40%] bg-indigo-500/10 blur-2xl rounded-full pointer-events-none" />
+              <div className="absolute left-[-10%] bottom-[-10%] w-[40%] h-[40%] bg-teal-500/10 blur-2xl rounded-full pointer-events-none" />
+
+              {/* Close Button */}
+              <button
+                onClick={closeContactModal}
+                className="absolute top-6 right-6 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              {!contactSuccess ? (
+                <form onSubmit={handleContactSubmit} className="space-y-6">
+                  {/* Header */}
+                  <div className="space-y-2">
+                    <div className="w-11 h-11 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-md">
+                      <MessageSquare size={20} />
+                    </div>
+                    <h2 className="text-xl font-black text-slate-900">Send us a message</h2>
+                    <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                      Have a question about our CDSS platform or enterprise SaaS pricing? Fill out the form below and we'll be in touch.
+                    </p>
+                  </div>
+
+                  {/* Form fields */}
+                  <div className="space-y-4">
+                    {/* Name */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Full Name</label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="John Doe"
+                        value={contactForm.name}
+                        onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Email Address</label>
+                      <input
+                        required
+                        type="email"
+                        placeholder="john@example.com"
+                        value={contactForm.email}
+                        onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    {/* Subject */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Subject</label>
+                      <select
+                        value={contactForm.subject}
+                        onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="General Inquiry">General Inquiry</option>
+                        <option value="Demo Request">Enterprise Demo Request</option>
+                        <option value="Technical Support">Technical Support</option>
+                        <option value="Pricing">SaaS Pricing / Billing</option>
+                      </select>
+                    </div>
+
+                    {/* Message */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Your Message</label>
+                      <textarea
+                        required
+                        rows={4}
+                        placeholder="How can we help you?"
+                        value={contactForm.message}
+                        onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    disabled={isSubmittingContact}
+                    type="submit"
+                    className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-2xl font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    {isSubmittingContact ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      'Submit Message'
+                    )}
+                  </button>
+                </form>
+              ) : (
+                <div className="py-8 text-center space-y-6">
+                  {/* Success State */}
+                  <div className="w-16 h-16 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-500 mx-auto shadow-sm">
+                    <Check size={28} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-black text-slate-900">Message Sent Successfully</h3>
+                    <p className="text-xs text-slate-500 font-semibold leading-relaxed max-w-sm mx-auto">
+                      Thank you for reaching out! A NeuroScan team representative will review your message and respond to <strong>{contactForm.email}</strong> within 24 hours.
+                    </p>
+                  </div>
+                  <button
+                    onClick={closeContactModal}
+                    className="px-8 py-2.5 bg-slate-950 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-wider transition-colors shadow"
+                  >
+                    Close Window
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
