@@ -20,6 +20,7 @@ export function MRIAnalysis() {
   const store = useAnalysisStore();
   const navigate = useNavigate();
   const [dragOver, setDragOver] = useState(false);
+  const [gradcamOpacity, setGradcamOpacity] = useState(0.5);
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -31,6 +32,7 @@ export function MRIAnalysis() {
         size: file.size,
         type: file.type,
         url: URL.createObjectURL(file),
+        rawFile: file,
       });
     }
   };
@@ -121,6 +123,7 @@ export function MRIAnalysis() {
                           size: file.size,
                           type: file.type,
                           url: URL.createObjectURL(file),
+                          rawFile: file,
                         });
                       }
                     }}
@@ -200,6 +203,35 @@ export function MRIAnalysis() {
                 </motion.div>
               ))}
             </div>
+
+            {store.preprocessedImages && (
+              <div className="mt-8 border-t border-border pt-6">
+                <h4 className="text-sm font-semibold text-text-primary mb-4">Pipeline Preprocessing Visualization Output</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                  {[
+                    { key: 'step0_original', label: 'Original MRI' },
+                    { key: 'step1_stripped', label: 'Skull Stripped' },
+                    { key: 'step2_corrected', label: 'Bias Corrected' },
+                    { key: 'step3_normalized', label: 'Normalized' },
+                    { key: 'step4_segmented', label: 'Segmented' },
+                  ].map(stepImg => {
+                    const imgUrl = store.preprocessedImages?.[stepImg.key];
+                    return (
+                      <div key={stepImg.key} className="p-2 bg-gray-50 border border-border rounded-xl text-center space-y-2">
+                        <span className="text-[10px] font-medium text-text-secondary">{stepImg.label}</span>
+                        <div className="aspect-square bg-black rounded-lg overflow-hidden border border-border flex items-center justify-center">
+                          {imgUrl ? (
+                            <img src={imgUrl} alt={stepImg.label} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[10px] text-text-tertiary">Processing...</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {store.preprocessingSteps.every(s => s.status === 'completed') && (
               <motion.div
@@ -309,48 +341,93 @@ export function MRIAnalysis() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            {/* Findings & Recommendations */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="medical-card p-6">
-                <h3 className="card-title mb-4 flex items-center gap-2">
-                  <Search size={16} className="text-medical-500" />
-                  AI Findings
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Grad-CAM Viewer Card */}
+              <div className="medical-card p-6 md:col-span-1 flex flex-col items-center justify-center space-y-4">
+                <h3 className="card-title flex items-center gap-2 self-start">
+                  <Brain size={16} className="text-medical-500" />
+                  Grad-CAM Saliency Map
                 </h3>
-                <ul className="space-y-3">
-                  {store.findings.map((finding, i) => (
-                    <motion.li
-                      key={i}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="flex items-start gap-2 text-sm text-text-secondary"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-medical-400 mt-1.5 flex-shrink-0" />
-                      {finding}
-                    </motion.li>
-                  ))}
-                </ul>
+                <div className="relative w-full aspect-square max-w-[260px] border border-border rounded-2xl overflow-hidden bg-black shadow-inner flex items-center justify-center">
+                  {/* Grayscale MRI Background */}
+                  <img
+                    src={store.preprocessedImages?.step3_normalized}
+                    alt="Normalized Scan"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  {/* Heatmap Overlay */}
+                  {store.gradCAMUrl && (
+                    <img
+                      src={store.gradCAMUrl}
+                      alt="Grad-CAM Activation"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      style={{ opacity: gradcamOpacity }}
+                    />
+                  )}
+                </div>
+                
+                {/* Opacity Control */}
+                <div className="w-full space-y-1 px-2">
+                  <div className="flex justify-between text-xs text-text-secondary font-medium">
+                    <span>Clean MRI</span>
+                    <span>Overlay Opacity: {(gradcamOpacity * 100).toFixed(0)}%</span>
+                    <span>Grad-CAM</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={gradcamOpacity}
+                    onChange={(e) => setGradcamOpacity(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-medical-500"
+                  />
+                </div>
               </div>
 
-              <div className="medical-card p-6">
-                <h3 className="card-title mb-4 flex items-center gap-2">
-                  <AlertCircle size={16} className="text-medical-500" />
-                  Clinical Recommendations
-                </h3>
-                <ul className="space-y-3">
-                  {store.recommendations.map((rec, i) => (
-                    <motion.li
-                      key={i}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="flex items-start gap-2 text-sm text-text-secondary"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 flex-shrink-0" />
-                      {rec}
-                    </motion.li>
-                  ))}
-                </ul>
+              {/* Findings & Recommendations */}
+              <div className="md:col-span-2 space-y-6">
+                <div className="medical-card p-6">
+                  <h3 className="card-title mb-4 flex items-center gap-2">
+                    <Search size={16} className="text-medical-500" />
+                    AI Findings
+                  </h3>
+                  <ul className="space-y-3">
+                    {store.findings.map((finding, i) => (
+                      <motion.li
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="flex items-start gap-2 text-sm text-text-secondary"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-medical-400 mt-1.5 flex-shrink-0" />
+                        {finding}
+                      </motion.li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="medical-card p-6">
+                  <h3 className="card-title mb-4 flex items-center gap-2">
+                    <AlertCircle size={16} className="text-medical-500" />
+                    Clinical Recommendations
+                  </h3>
+                  <ul className="space-y-3">
+                    {store.recommendations.map((rec, i) => (
+                      <motion.li
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="flex items-start gap-2 text-sm text-text-secondary"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 flex-shrink-0" />
+                        {rec}
+                      </motion.li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
 

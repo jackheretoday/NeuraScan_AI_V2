@@ -6,6 +6,7 @@ interface UploadedFile {
   size: number;
   type: string;
   url: string;
+  rawFile?: File;
 }
 
 type PipelineStep = 'ingestion' | 'preprocessing' | 'classification' | 'xai';
@@ -23,6 +24,8 @@ interface AnalysisState {
   gradCAMUrl: string | null;
   findings: string[];
   recommendations: string[];
+  sessionId: string | null;
+  preprocessedImages: Record<string, string> | null;
   setCurrentStep: (step: PipelineStep) => void;
   setUploadedFile: (file: UploadedFile | null) => void;
   runPreprocessing: () => Promise<void>;
@@ -38,7 +41,7 @@ const defaultPreprocessingSteps: PreprocessingStep[] = [
   { name: 'Segmentation', status: 'pending' },
 ];
 
-export const useAnalysisStore = create<AnalysisState>((set) => ({
+export const useAnalysisStore = create<AnalysisState>((set, get) => ({
   currentStep: 'ingestion',
   uploadedFile: null,
   preprocessingSteps: defaultPreprocessingSteps,
@@ -47,62 +50,137 @@ export const useAnalysisStore = create<AnalysisState>((set) => ({
   gradCAMUrl: null,
   findings: [],
   recommendations: [],
+  sessionId: null,
+  preprocessedImages: null,
 
   setCurrentStep: (step) => set({ currentStep: step }),
 
   setUploadedFile: (file) => set({ uploadedFile: file }),
 
   runPreprocessing: async () => {
-    set({ isProcessing: true });
+    const { uploadedFile } = get();
+    if (!uploadedFile || !uploadedFile.rawFile) {
+      console.error("No file to upload");
+      return;
+    }
+
+    set({ isProcessing: true, currentStep: 'preprocessing' });
+
+    // Step 1: Upload the raw file
+    const formData = new FormData();
+    formData.append('file', uploadedFile.rawFile);
+
+    let session_id = '';
+    try {
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
+      session_id = uploadData.session_id;
+      set({ sessionId: session_id });
+    } catch (err) {
+      console.error(err);
+      const steps = defaultPreprocessingSteps.map(s => ({ ...s, status: 'failed' as const }));
+      set({ preprocessingSteps: steps, isProcessing: false });
+      return;
+    }
+
+    // Step 2: Trigger preprocessing on backend
     const steps = [...defaultPreprocessingSteps];
+    
+    // Simulate frontend step-by-step progress while backend processes
     for (let i = 0; i < steps.length; i++) {
       steps[i] = { ...steps[i], status: 'running' };
       set({ preprocessingSteps: [...steps] });
-      await new Promise(resolve => setTimeout(resolve, 800));
-      steps[i] = { ...steps[i], status: 'completed', duration: `${(Math.random() * 3 + 0.5).toFixed(1)}s` };
-      set({ preprocessingSteps: [...steps] });
+      await new Promise(resolve => setTimeout(resolve, 600));
     }
-    set({ isProcessing: false, currentStep: 'classification' });
+
+    try {
+      const preprocessRes = await fetch('/api/preprocess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id })
+      });
+      if (!preprocessRes.ok) throw new Error("Preprocessing failed");
+      const preprocessData = await preprocessRes.json();
+      
+      // Update steps to completed
+      const completedSteps = defaultPreprocessingSteps.map(s => ({
+        ...s,
+        status: 'completed' as const,
+        duration: `${(Math.random() * 1.5 + 0.5).toFixed(1)}s`
+      }));
+
+      set({
+        preprocessingSteps: completedSteps,
+        preprocessedImages: preprocessData.steps,
+        isProcessing: false
+      });
+    } catch (err) {
+      console.error(err);
+      const failedSteps = defaultPreprocessingSteps.map(s => ({ ...s, status: 'failed' as const }));
+      set({ preprocessingSteps: failedSteps, isProcessing: false });
+    }
   },
 
   runClassification: async () => {
-    set({ isProcessing: true });
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    set({
-      isProcessing: false,
-      classificationResult: {
-        diseaseClass: 'Very Mild Demented',
-        confidence: 0.921,
-        probabilityBreakdown: {
-          'Non Demented': 0.032,
-          'Very Mild Demented': 0.921,
-          'Mild Demented': 0.041,
-          'Moderate Demented': 0.006,
+    const { sessionId } = get();
+    if (!sessionId) return;
+
+    set({ isProcessing: true, currentStep: 'classification' });
+
+    try {
+      const classifyRes = await fetch('/api/classify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId })
+      });
+      if (!classifyRes.ok) throw new Error("Classification failed");
+      const classifyData = await classifyRes.json();
+
+      set({
+        isProcessing: false,
+        classificationResult: {
+          diseaseClass: classifyData.diseaseClass,
+          confidence: classifyData.confidence,
+          probabilityBreakdown: classifyData.probabilityBreakdown
         },
-      },
-      findings: [
-        'Mild bilateral hippocampal atrophy observed, more prominent in the left hemisphere',
-        'Ventricular enlargement consistent with early neurodegenerative changes',
-        'Cortical thinning in temporal and parietal regions detected',
-        'No evidence of vascular lesions or microbleeds',
-      ],
-      recommendations: [
-        'Correlate findings with clinical cognitive assessment (MMSE/MoCA)',
-        'Follow-up MRI recommended in 6 months to assess progression',
-        'Consider referral to memory clinic for comprehensive evaluation',
-        'Initiate lifestyle interventions: cognitive training, Mediterranean diet',
-      ],
-      currentStep: 'xai',
-    });
+        findings: classifyData.findings,
+        recommendations: classifyData.recommendations,
+        currentStep: 'classification' // Stay on classification so user can click to go to XAI
+      });
+    } catch (err) {
+      console.error(err);
+      set({ isProcessing: false });
+    }
   },
 
   runExplainability: async () => {
+    const { sessionId } = get();
+    if (!sessionId) return;
+
     set({ isProcessing: true });
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    set({
-      isProcessing: false,
-      gradCAMUrl: '/gradcam/result.png',
-    });
+
+    try {
+      const explainRes = await fetch('/api/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId })
+      });
+      if (!explainRes.ok) throw new Error("Explainability failed");
+      const explainData = await explainRes.json();
+
+      set({
+        isProcessing: false,
+        gradCAMUrl: explainData.gradCAMUrl,
+        currentStep: 'xai'
+      });
+    } catch (err) {
+      console.error(err);
+      set({ isProcessing: false });
+    }
   },
 
   reset: () => set({
@@ -114,5 +192,8 @@ export const useAnalysisStore = create<AnalysisState>((set) => ({
     gradCAMUrl: null,
     findings: [],
     recommendations: [],
+    sessionId: null,
+    preprocessedImages: null
   }),
 }));
+
