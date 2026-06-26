@@ -17,6 +17,7 @@ import { Longitudinal } from '@/pages/Longitudinal';
 import { Reports } from '@/pages/Reports';
 import { AuditLogs } from '@/pages/AuditLogs';
 import { Settings } from '@/pages/Settings';
+import { DementiaDetection } from '@/pages/DementiaDetection';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -48,6 +49,7 @@ export default function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="mri" element={<MRIAnalysis />} />
+        <Route path="dementia-detect" element={<DementiaDetection />} />
         <Route path="prediction" element={<Prediction />} />
         <Route path="brain-age" element={<BrainAge />} />
         <Route path="patients" element={<Patients />} />

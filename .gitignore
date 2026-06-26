@@ -31,6 +31,7 @@ ENV/
 # Model Files and large assets
 best_model/
 best_model.zip
+backend/Models/
 sample_mri.png
 backend/static/sessions/
 __pycache__/

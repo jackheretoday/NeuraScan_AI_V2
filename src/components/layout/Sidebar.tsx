@@ -8,7 +8,8 @@ import { useAuthStore } from '@/store/authStore';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', status: 'Complete', color: 'teal' },
-  { icon: Brain, label: 'Upload & Ingestion', path: '/dashboard/mri', status: 'Todo', color: 'blue' },
+  { icon: Brain, label: 'Dementia Detection', path: '/dashboard/dementia-detect', status: 'Complete', color: 'teal' },
+  { icon: Brain, label: 'Pipeline Analysis', path: '/dashboard/mri', status: 'Complete', color: 'teal' },
   { icon: Activity, label: 'MCI Conversion Predictor', path: '/dashboard/prediction', status: 'Todo', color: 'blue' },
   { icon: Clock, label: 'Brain Age Tracker', path: '/dashboard/brain-age', status: 'New', color: 'purple' },
   { icon: Shield, label: 'Audit Trail Logs', path: '/dashboard/audit', status: 'Complete', color: 'teal' },
