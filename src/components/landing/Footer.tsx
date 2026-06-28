@@ -7,8 +7,8 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-8">
           <div className="col-span-2">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-medical-600 flex items-center justify-center">
-                <Brain size={22} className="text-white" />
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-white p-0.5 border border-slate-200">
+                <img src="/images/efcd965e-9531-4d5a-be6a-9e7247020349.jpg" alt="Logo" className="w-full h-full object-cover rounded-lg" />
               </div>
               <div>
                 <p className="text-lg font-bold text-white">NeuroScan AI</p>

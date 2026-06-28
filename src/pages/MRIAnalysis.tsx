@@ -4,6 +4,7 @@ import {
   AlertCircle, Download, Save, UserRound, FileText,
 } from 'lucide-react';
 import { useAnalysisStore } from '@/store/analysisStore';
+import { usePatientStore } from '@/store/patientStore';
 import { useState } from 'react';
 import { StatusBadge, RiskBadge } from '@/components/ui/Badge';
 import { useNavigate } from 'react-router-dom';
@@ -19,8 +20,43 @@ const pipelineSteps = [
 export function MRIAnalysis() {
   const store = useAnalysisStore();
   const navigate = useNavigate();
+  const { patients } = usePatientStore();
   const [dragOver, setDragOver] = useState(false);
   const [gradcamOpacity, setGradcamOpacity] = useState(0.5);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>(patients[0]?.id || '');
+  const [saveStatus, setSaveStatus] = useState<string>('');
+
+  const handleSave = async () => {
+    if (!selectedPatientId) {
+      alert("Please select a patient profile to link this scan.");
+      return;
+    }
+    try {
+      const res = await fetch('/api/mri/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: selectedPatientId,
+          session_id: store.sessionId,
+          classification: store.classificationResult?.diseaseClass,
+          confidence: store.classificationResult?.confidence,
+          probabilityBreakdown: store.classificationResult?.probabilityBreakdown,
+          findings: store.findings,
+          recommendations: store.recommendations
+        })
+      });
+      if (!res.ok) throw new Error('Save failed');
+      
+      const pat = patients.find(p => p.id === selectedPatientId);
+      setSaveStatus(`Analysis saved successfully to patient profile: ${pat?.name || selectedPatientId}`);
+      
+      // Refresh patients list
+      await usePatientStore.getState().fetchPatients();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save analysis.");
+    }
+  };
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -319,11 +355,35 @@ export function MRIAnalysis() {
                   ))}
                 </div>
 
+                {/* Patient Selection Dropdown */}
+                <div className="max-w-md mx-auto p-4 border border-border bg-gray-50 rounded-xl space-y-2 text-left my-4">
+                  <label className="text-xs font-semibold text-text-secondary block">Link to Patient Profile</label>
+                  <select
+                    value={selectedPatientId}
+                    onChange={(e) => { setSelectedPatientId(e.target.value); setSaveStatus(''); }}
+                    className="input-field"
+                  >
+                    <option value="">-- Select Patient --</option>
+                    {patients.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.patientId})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {saveStatus && (
+                  <div className="text-center text-sm font-semibold text-emerald-600 my-2">
+                    {saveStatus}
+                  </div>
+                )}
+
                 <div className="flex justify-center gap-3">
                   <button onClick={() => store.runExplainability()} className="btn-primary">
                     View Explainability <Search size={16} />
                   </button>
-                  <button onClick={() => navigate('/dashboard/reports')} className="btn-secondary">
+                  <button onClick={handleSave} className="btn-secondary">
+                    <Save size={16} /> Save Analysis
+                  </button>
+                  <button onClick={() => navigate('/dashboard/reports')} className="btn-ghost">
                     <FileText size={16} /> Generate Report
                   </button>
                 </div>
@@ -431,18 +491,39 @@ export function MRIAnalysis() {
               </div>
             </div>
 
+            {/* Patient Selection Dropdown */}
+            <div className="max-w-md mx-auto p-4 border border-border bg-gray-50 rounded-xl space-y-2 text-left my-4 w-full">
+              <label className="text-xs font-semibold text-text-secondary block">Link to Patient Profile</label>
+              <select
+                value={selectedPatientId}
+                onChange={(e) => { setSelectedPatientId(e.target.value); setSaveStatus(''); }}
+                className="input-field"
+              >
+                <option value="">-- Select Patient --</option>
+                {patients.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.patientId})</option>
+                ))}
+              </select>
+            </div>
+
+            {saveStatus && (
+              <div className="text-center text-sm font-semibold text-emerald-600 my-2">
+                {saveStatus}
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-wrap justify-center gap-3">
               <button className="btn-primary">
                 <Download size={16} /> Download Report
               </button>
-              <button className="btn-secondary">
+              <button onClick={handleSave} className="btn-secondary">
                 <Save size={16} /> Save Analysis
               </button>
               <button className="btn-ghost">
                 <UserRound size={16} /> Refer Specialist
               </button>
-              <button onClick={() => store.reset()} className="btn-ghost">
+              <button onClick={() => { store.reset(); setSaveStatus(''); }} className="btn-ghost">
                 New Analysis
               </button>
             </div>

@@ -22,11 +22,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const user = mockUsers.find(u => u.email === email);
-      if (!user || password.length < 6) {
-        throw new Error('Invalid email or password. Please try again.');
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Invalid email or password. Please try again.');
       }
+      const user = await res.json();
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });
@@ -36,19 +41,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (data) => {
     set({ isLoading: true, error: null });
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      if (mockUsers.find(u => u.email === data.email)) {
-        throw new Error('An account with this email already exists.');
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'An account with this email already exists.');
       }
-      const newUser: User = {
-        id: `U-${String(mockUsers.length + 1).padStart(3, '0')}`,
-        email: data.email,
-        name: data.name,
-        role: data.role,
-        createdAt: new Date().toISOString().split('T')[0],
-        lastActive: new Date().toISOString().split('T')[0],
-      };
-      mockUsers.push(newUser);
+      const newUser = await res.json();
       set({ user: newUser, isAuthenticated: true, isLoading: false });
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });

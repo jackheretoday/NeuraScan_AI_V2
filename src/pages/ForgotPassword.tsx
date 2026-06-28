@@ -27,8 +27,8 @@ export function ForgotPassword() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-medical-600 mb-4">
-            <Brain size={32} className="text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl overflow-hidden mb-4 bg-white p-0.5 shadow-md border border-slate-200">
+            <img src="/images/efcd965e-9531-4d5a-be6a-9e7247020349.jpg" alt="Logo" className="w-full h-full object-cover rounded-2xl" />
           </div>
           <h1 className="text-2xl font-bold text-white">Reset Password</h1>
           <p className="text-medical-400 text-sm mt-1">We'll send you a reset link</p>

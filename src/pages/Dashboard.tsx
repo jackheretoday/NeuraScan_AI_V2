@@ -41,6 +41,27 @@ export function Dashboard() {
   const [simulateUncertainty, setSimulateUncertainty] = useState<boolean>(false);
   const [mriViewMode, setMriViewMode] = useState<'original' | 'gradcam'>('original');
 
+  const [metrics, setMetrics] = useState(dashboardMetrics);
+  const [diseaseDist, setDiseaseDist] = useState(diseaseDistribution);
+  const [riskDist, setRiskDist] = useState(riskDistribution);
+
+  useEffect(() => {
+    fetch('/api/dashboard/metrics')
+      .then(res => res.json())
+      .then(data => {
+        if (data.metrics) setMetrics(data.metrics);
+        if (data.diseaseDistribution) setDiseaseDist(data.diseaseDistribution);
+        if (data.riskDistribution) setRiskDist(data.riskDistribution);
+      })
+      .catch(console.error);
+  }, [patients]);
+
+  useEffect(() => {
+    if (patients.length > 0 && !patients.some(p => p.id === selectedPatientId)) {
+      setSelectedPatientId(patients[0].id);
+    }
+  }, [patients, selectedPatientId]);
+
   // Dropzone states
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [ingestState, setIngestState] = useState<'idle' | 'loading' | 'completed'>('idle');
@@ -53,6 +74,7 @@ export function Dashboard() {
 
   // Dev Demo Drawer state
   const [isDemoDrawerOpen, setIsDemoDrawerOpen] = useState<boolean>(false);
+  const [consoleTab, setConsoleTab] = useState<'mri' | 'risk' | 'brainage' | 'recommendations'>('mri');
 
   const activePatient = patients.find(p => p.id === selectedPatientId) || patients[0];
 
@@ -423,10 +445,36 @@ export function Dashboard() {
 
           {/* Console View */}
           {dashboardView === 'console' ? (
-            <div className="grid lg:grid-cols-2 gap-6">
-              
-              {/* LEFT COLUMN */}
-              <div className="space-y-6">
+            <div className="space-y-6">
+              {/* Console Tab Selector */}
+              <div className="flex flex-wrap border-b border-border bg-white dark:bg-slate-900 rounded-xl p-1 mb-2 shadow-sm border border-slate-100 dark:border-slate-800 max-w-4xl">
+                {[
+                  { id: 'mri' as const, label: 'MRI Imaging & Triage (M1/M2)', icon: Brain, color: '#1a5fa8' },
+                  { id: 'risk' as const, label: 'MCI Conversion Risk (M3)', icon: Activity, color: '#0d9488' },
+                  { id: 'brainage' as const, label: 'NeuroScore™ & Brain Age (M4)', icon: Clock, color: '#f59e0b' },
+                  { id: 'recommendations' as const, label: 'Clinical Action Path', icon: Shield, color: '#dc2626' }
+                ].map(tab => {
+                  const TabIcon = tab.icon;
+                  const isActive = consoleTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setConsoleTab(tab.id)}
+                      className={`flex-1 min-w-[150px] flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                        isActive
+                          ? 'bg-slate-50 dark:bg-slate-850 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/50 dark:border-slate-800'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-slate-50/50 dark:hover:bg-slate-850/50'
+                      }`}
+                    >
+                      <TabIcon size={14} style={{ color: isActive ? tab.color : '#64748b' }} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {consoleTab === 'mri' && (
+                <div className="space-y-6">
                 
                 {/* PANEL 1: Enhanced Ingestion & Triage */}
                 <motion.div
@@ -726,17 +774,16 @@ export function Dashboard() {
                     Composed timeline contrasts neurological tissue atrophy (area) with observable cognitive MMSE decline (line).
                   </p>
                 </motion.div>
-
               </div>
+              )}
 
-              {/* RIGHT COLUMN */}
-              <div className="space-y-6">
-
-                {/* PANEL 2: MCI Conversion Predictor Widget */}
-                <motion.div
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 }}
+              {consoleTab === 'risk' && (
+                <div className="space-y-6">
+                  {/* PANEL 2: MCI Conversion Predictor Widget */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
                   className="medical-card p-5"
                 >
                   <div className="flex items-center justify-between mb-4">
@@ -826,9 +873,13 @@ export function Dashboard() {
                     </div>
                   </div>
                 </motion.div>
+              </div>
+              )}
 
-                {/* PANEL 3: Brain Age Gap Tracker */}
-                <motion.div
+              {consoleTab === 'brainage' && (
+                <div className="space-y-6">
+                  {/* PANEL 3: Brain Age Gap Tracker */}
+                  <motion.div
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
@@ -889,9 +940,13 @@ export function Dashboard() {
                     </div>
                   </div>
                 </motion.div>
+              </div>
+              )}
 
-                {/* PANEL 5: Clinical Action & Tabbed Ablation Engine */}
-                <motion.div
+              {consoleTab === 'recommendations' && (
+                <div className="space-y-6">
+                  {/* PANEL 5: Clinical Action & Tabbed Ablation Engine */}
+                  <motion.div
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
@@ -1007,8 +1062,8 @@ export function Dashboard() {
                     </div>
                   </div>
                 </motion.div>
-
               </div>
+              )}
 
             </div>
           ) : (
@@ -1030,7 +1085,7 @@ export function Dashboard() {
                     <ResponsiveContainer width="60%" height={200}>
                       <RePieChart>
                         <Pie
-                          data={diseaseDistribution}
+                          data={diseaseDist}
                           cx="50%"
                           cy="50%"
                           innerRadius={50}
@@ -1038,7 +1093,7 @@ export function Dashboard() {
                           paddingAngle={3}
                           dataKey="value"
                         >
-                          {diseaseDistribution.map((entry, index) => (
+                          {diseaseDist.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={getDiseaseColor(entry.name)} />
                           ))}
                         </Pie>
@@ -1046,7 +1101,7 @@ export function Dashboard() {
                       </RePieChart>
                     </ResponsiveContainer>
                     <div className="space-y-2">
-                      {diseaseDistribution.map((d) => (
+                      {diseaseDist.map((d) => (
                         <div key={d.name} className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getDiseaseColor(d.name) }} />
                           <span className="text-xs text-text-secondary">{d.name}</span>
@@ -1068,13 +1123,13 @@ export function Dashboard() {
                     <h3 className="card-title">Risk Distribution</h3>
                   </div>
                   <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={riskDistribution}>
+                    <BarChart data={riskDist}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="category" tick={{ fontSize: 11, fill: '#475569' }} />
                       <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
                       <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={40}>
-                        {riskDistribution.map((entry, index) => (
+                        {riskDist.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Bar>

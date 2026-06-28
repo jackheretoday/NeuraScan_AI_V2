@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Search, Download } from 'lucide-react';
 import { mockAuditLogs } from '@/data/mockData';
 import { formatDateTime } from '@/lib/utils';
-import type { AuditAction, RiskCategory } from '@/types';
+import type { AuditAction, RiskCategory, AuditEntry } from '@/types';
 
 const actionLabels: Record<AuditAction, string> = {
   analysis: 'Analysis',
@@ -21,8 +21,16 @@ export function AuditLogs() {
   const [filterAction, setFilterAction] = useState<string>('All');
   const [filterRisk, setFilterRisk] = useState<RiskCategory | 'All'>('All');
   const [filterUncertainty, setFilterUncertainty] = useState<string>('All');
+  const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
 
-  const filteredLogs = mockAuditLogs.filter(log => {
+  useEffect(() => {
+    fetch('/api/audit-logs')
+      .then(res => res.json())
+      .then(data => setAuditLogs(data))
+      .catch(console.error);
+  }, []);
+
+  const filteredLogs = auditLogs.filter(log => {
     // Search filter: Operator, Details, or Target Profile (ABHA ID)
     if (search) {
       const matchName = log.userName.toLowerCase().includes(search.toLowerCase());
@@ -56,10 +64,10 @@ export function AuditLogs() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Events Checked', value: mockAuditLogs.length, icon: Shield, color: '#1a5fa8' },
-          { label: 'Model Analyses', value: mockAuditLogs.filter(l => l.action === 'analysis').length, icon: Shield, color: '#0d9488' },
-          { label: 'Low Confidence Flags', value: mockAuditLogs.filter(l => l.uncertaintyStatus === true).length, icon: Shield, color: '#dc2626' },
-          { label: 'IP Nodes Registered', value: Array.from(new Set(mockAuditLogs.map(l => l.ipAddress))).length, icon: Shield, color: '#f59e0b' },
+          { label: 'Total Events Checked', value: auditLogs.length, icon: Shield, color: '#1a5fa8' },
+          { label: 'Model Analyses', value: auditLogs.filter(l => l.action === 'analysis').length, icon: Shield, color: '#0d9488' },
+          { label: 'Low Confidence Flags', value: auditLogs.filter(l => l.uncertaintyStatus === true).length, icon: Shield, color: '#dc2626' },
+          { label: 'IP Nodes Registered', value: Array.from(new Set(auditLogs.map(l => l.ipAddress))).length, icon: Shield, color: '#f59e0b' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}

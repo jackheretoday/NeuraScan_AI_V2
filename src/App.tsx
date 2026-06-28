@@ -18,6 +18,7 @@ import { Reports } from '@/pages/Reports';
 import { AuditLogs } from '@/pages/AuditLogs';
 import { Settings } from '@/pages/Settings';
 import { DementiaDetection } from '@/pages/DementiaDetection';
+import { AdminDashboard } from '@/pages/AdminDashboard';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -25,6 +26,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
+}
+
+function DashboardIndex() {
+  const { user } = useAuthStore();
+  if (user?.role === 'administrator') {
+    return <AdminDashboard />;
+  }
+  return <Dashboard />;
 }
 
 export default function App() {
@@ -47,7 +56,7 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<DashboardIndex />} />
         <Route path="mri" element={<MRIAnalysis />} />
         <Route path="dementia-detect" element={<DementiaDetection />} />
         <Route path="prediction" element={<Prediction />} />
