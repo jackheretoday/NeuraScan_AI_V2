@@ -14,7 +14,17 @@ export const useBrainAgeStore = create<BrainAgeState>((set) => ({
 
   refreshData: async () => {
     set({ isLoading: true });
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    set({ isLoading: false });
+    try {
+      const res = await fetch('/api/brain-age');
+      if (!res.ok) throw new Error('Failed to fetch brain age data');
+      const data = await res.json();
+      set({ data, isLoading: false });
+    } catch (err) {
+      console.error(err);
+      set({ isLoading: false });
+    }
   },
 }));
+
+// Load immediately on file execution
+useBrainAgeStore.getState().refreshData();

@@ -16,7 +16,30 @@ torch.load = patched_torch_load
 
 # Global variables for model
 model = None
-MODEL_ZIP_PATH = "/Users/jaykshirsagar/Desktop/P-jects/NeuroScan_AI_new_v2/best_model.zip"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def find_model_file():
+    # 1. Search in BASE_DIR directly
+    for name in ["best_model.zip", "best_model.pth", "best_model.pt", "final_model.pth", "final_model.pt"]:
+        p = os.path.join(BASE_DIR, name)
+        if os.path.exists(p):
+            return p
+            
+    # 2. Search under BASE_DIR/Models recursively
+    models_dir = os.path.join(BASE_DIR, "Models")
+    if os.path.exists(models_dir):
+        for root, dirs, files in os.walk(models_dir):
+            for name in ["best_model.pth", "final_model.pth", "best_model.zip", "best_model.pt", "final_model.pt"]:
+                if name in files:
+                    return os.path.join(root, name)
+                    
+    # 3. Fallback to general walk under BASE_DIR
+    for root, dirs, files in os.walk(BASE_DIR):
+        for name in ["best_model.pth", "final_model.pth", "best_model.zip", "best_model.pt", "final_model.pt"]:
+            if name in files:
+                return os.path.join(root, name)
+                
+    return None
 
 # Disease classes mapping from model labels to frontend labels
 CLASS_MAP = {
@@ -54,12 +77,18 @@ class DementiaNet(nn.Module):
 def get_model():
     global model
     if model is None:
-        if not os.path.exists(MODEL_ZIP_PATH):
-            raise FileNotFoundError(f"Model file not found at {MODEL_ZIP_PATH}")
-        print("Loading PyTorch DementiaNet model from checkpoint...")
+        path = find_model_file()
+        if path is None:
+            raise FileNotFoundError(
+                f"Model file not found. Please place your model file ('best_model.pth', 'final_model.pth', etc.) in: {BASE_DIR}"
+            )
+        print(f"Loading PyTorch DementiaNet model from checkpoint: {path}...")
         model = DementiaNet()
-        checkpoint = torch.load(MODEL_ZIP_PATH, map_location='cpu')
-        model.load_state_dict(checkpoint['model'])
+        checkpoint = torch.load(path, map_location='cpu')
+        if isinstance(checkpoint, dict) and 'model' in checkpoint:
+            model.load_state_dict(checkpoint['model'])
+        else:
+            model.load_state_dict(checkpoint)
         model.eval()
         print("Model loaded successfully.")
     return model
@@ -171,12 +200,13 @@ def run_preprocessing_pipeline(input_path, session_dir):
     segmented_path = os.path.join(session_dir, "step4_segmented.png")
     segmented_img.save(segmented_path)
     
+    static_root = os.path.dirname(os.path.dirname(session_dir))
     return {
-        "step0_original": "/static/" + os.path.relpath(orig_path, start=os.path.dirname(session_dir)),
-        "step1_stripped": "/static/" + os.path.relpath(stripped_path, start=os.path.dirname(session_dir)),
-        "step2_corrected": "/static/" + os.path.relpath(corrected_path, start=os.path.dirname(session_dir)),
-        "step3_normalized": "/static/" + os.path.relpath(normalized_path, start=os.path.dirname(session_dir)),
-        "step4_segmented": "/static/" + os.path.relpath(segmented_path, start=os.path.dirname(session_dir))
+        "step0_original": "/static/" + os.path.relpath(orig_path, start=static_root).replace('\\', '/'),
+        "step1_stripped": "/static/" + os.path.relpath(stripped_path, start=static_root).replace('\\', '/'),
+        "step2_corrected": "/static/" + os.path.relpath(corrected_path, start=static_root).replace('\\', '/'),
+        "step3_normalized": "/static/" + os.path.relpath(normalized_path, start=static_root).replace('\\', '/'),
+        "step4_segmented": "/static/" + os.path.relpath(segmented_path, start=static_root).replace('\\', '/')
     }
 
 def get_findings_and_recommendations(disease_class):
@@ -321,4 +351,5 @@ def generate_gradcam_overlay(session_dir, predicted_idx):
     overlay_path = os.path.join(session_dir, "gradcam_overlay.png")
     Image.fromarray(overlay).save(overlay_path)
     
-    return "/static/" + os.path.relpath(overlay_path, start=os.path.dirname(session_dir))
+    static_root = os.path.dirname(os.path.dirname(session_dir))
+    return "/static/" + os.path.relpath(overlay_path, start=static_root).replace('\\', '/')

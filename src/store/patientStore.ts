@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { Patient, RiskCategory } from '@/types';
-import { mockPatients } from '@/data/mockData';
 
 interface PatientFilters {
   search: string;
@@ -18,11 +17,13 @@ interface PatientState {
   setFilters: (filters: Partial<PatientFilters>) => void;
   getFilteredPatients: () => Patient[];
   getPatientById: (id: string) => Patient | undefined;
-  updatePatient: (id: string, updatedFields: Partial<Patient>) => void;
+  fetchPatients: () => Promise<void>;
+  updatePatient: (id: string, updatedFields: Partial<Patient>) => Promise<void>;
+  addPatient: (patientData: Partial<Patient>) => Promise<void>;
 }
 
 export const usePatientStore = create<PatientState>((set, get) => ({
-  patients: mockPatients,
+  patients: [],
   selectedPatient: null,
   isLoading: false,
   filters: {
@@ -55,21 +56,68 @@ export const usePatientStore = create<PatientState>((set, get) => ({
     return get().patients.find(p => p.id === id || p.patientId === id);
   },
 
-  updatePatient: (id, updatedFields) => set((state) => {
-    const updatedPatients = state.patients.map((p) => {
-      if (p.id === id || p.patientId === id) {
-        return { ...p, ...updatedFields };
-      }
-      return p;
-    });
+  fetchPatients: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await fetch('/api/patients');
+      if (!res.ok) throw new Error('Failed to fetch patients');
+      const data = await res.json();
+      set({ patients: data, isLoading: false });
+    } catch (err) {
+      console.error(err);
+      set({ isLoading: false });
+    }
+  },
 
-    const updatedSelected = state.selectedPatient && (state.selectedPatient.id === id || state.selectedPatient.patientId === id)
-      ? { ...state.selectedPatient, ...updatedFields }
-      : state.selectedPatient;
+  updatePatient: async (id, updatedFields) => {
+    try {
+      const res = await fetch(`/api/patients/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedFields)
+      });
+      if (!res.ok) throw new Error('Failed to update patient');
+      const updatedPatient = await res.json();
+      
+      set((state) => {
+        const updatedPatients = state.patients.map((p) => {
+          if (p.id === id || p.patientId === id) {
+            return updatedPatient;
+          }
+          return p;
+        });
 
-    return {
-      patients: updatedPatients,
-      selectedPatient: updatedSelected
-    };
-  }),
+        const updatedSelected = state.selectedPatient && (state.selectedPatient.id === id || state.selectedPatient.patientId === id)
+          ? updatedPatient
+          : state.selectedPatient;
+
+        return {
+          patients: updatedPatients,
+          selectedPatient: updatedSelected
+        };
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  addPatient: async (patientData) => {
+    try {
+      const res = await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patientData)
+      });
+      if (!res.ok) throw new Error('Failed to create patient');
+      const newPatient = await res.json();
+      set((state) => ({
+        patients: [...state.patients, newPatient]
+      }));
+    } catch (err) {
+      console.error(err);
+    }
+  }
 }));
+
+// Load patients immediately
+usePatientStore.getState().fetchPatients();

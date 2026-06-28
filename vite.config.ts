@@ -12,6 +12,9 @@ export default defineConfig({
     },
   },
   server: {
+    watch: {
+      ignored: ['**/backend/**']
+    },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:5001',
@@ -19,6 +22,11 @@ export default defineConfig({
         secure: false,
       },
       '/static': {
+        target: 'http://127.0.0.1:5001',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/db-viewer': {
         target: 'http://127.0.0.1:5001',
         changeOrigin: true,
         secure: false,

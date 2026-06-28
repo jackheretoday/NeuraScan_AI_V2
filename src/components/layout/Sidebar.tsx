@@ -6,14 +6,6 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', status: 'Complete', color: 'teal' },
-  { icon: Brain, label: 'Upload & Ingestion', path: '/dashboard/mri', status: 'Todo', color: 'blue' },
-  { icon: Activity, label: 'MCI Conversion Predictor', path: '/dashboard/prediction', status: 'Todo', color: 'blue' },
-  { icon: Clock, label: 'Brain Age Tracker', path: '/dashboard/brain-age', status: 'New', color: 'purple' },
-  { icon: Shield, label: 'Audit Trail Logs', path: '/dashboard/audit', status: 'Complete', color: 'teal' },
-];
-
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
@@ -21,6 +13,18 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, logout } = useAuthStore();
+
+  const navItems = user?.role === 'administrator' ? [
+    { icon: LayoutDashboard, label: 'Admin Console', path: '/dashboard', status: 'Core', color: 'teal' },
+    { icon: Shield, label: 'Audit Trail Logs', path: '/dashboard/audit', status: 'Complete', color: 'teal' },
+  ] : [
+    { icon: LayoutDashboard, label: 'Doctor Console', path: '/dashboard', status: 'Core', color: 'teal' },
+    { icon: Brain, label: 'Dementia Detection', path: '/dashboard/dementia-detect', status: 'Complete', color: 'teal' },
+    { icon: Brain, label: 'Pipeline Analysis', path: '/dashboard/mri', status: 'Complete', color: 'teal' },
+    { icon: Activity, label: 'MCI Conversion Predictor', path: '/dashboard/prediction', status: 'Todo', color: 'blue' },
+    { icon: Clock, label: 'Brain Age Tracker', path: '/dashboard/brain-age', status: 'New', color: 'purple' },
+    { icon: Shield, label: 'Audit Trail Logs', path: '/dashboard/audit', status: 'Complete', color: 'teal' },
+  ];
 
   return (
     <motion.aside
@@ -32,8 +36,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center justify-between px-4 h-16 border-b border-border">
         <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center flex-shrink-0 shadow-sm">
-            <Brain size={16} className="text-white" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm bg-white p-0.5 border border-slate-200">
+            <img src="/images/efcd965e-9531-4d5a-be6a-9e7247020349.jpg" alt="Logo" className="w-full h-full object-cover rounded-md" />
           </div>
           {!collapsed && (
             <motion.div

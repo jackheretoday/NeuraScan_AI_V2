@@ -126,8 +126,8 @@ export function Landing() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center shadow-md">
-              <Brain size={20} className="text-white" />
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shadow-md bg-white p-0.5 border border-slate-200">
+              <img src="/images/efcd965e-9531-4d5a-be6a-9e7247020349.jpg" alt="Logo" className="w-full h-full object-cover rounded-lg" />
             </div>
             <span className="text-lg font-black tracking-tight text-slate-900">
               NEUROSCAN<span className="text-teal-500 font-black">+</span>
